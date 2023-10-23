@@ -1,0 +1,22 @@
+.vscode
+
+# MATLAB files
+*.mex*
+*.asv
+*/*/ess_report.mat
+*/ess_report.mat
+Matlab/**/Results
+Matlab/**/Results_PI
+Matlab/**/Results_PPL
+Matlab/setup.m
+parfor_done.tmp
+Matlab/Figures/*.png
+Matlab/Figures/PI-waterfall/*.pdf
+Matlab/Log
+Matlab/slurm*.out
+
+# Python files
+python/results/
+python/figures
+Pipfile
+__pycache__

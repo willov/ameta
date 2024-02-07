@@ -14,7 +14,9 @@ We implemented the model in two different frameworks to make it more accessible.
 
 The MATLAB implementation is using IQM tools, which is a package that interfaces to the SUNDIALS suite of solvers. 
 
-To run the scripts which generate the plots in the paper, run `Matlab/alcoholModel.m`. Note that you need to have MATLAB installed with a working C-compiler. 
+**To run the scripts which generate the plots in the paper, run `Matlab/alcoholModel.m`.** Note that you need to have MATLAB installed with a working C-compiler.
+
+To plot the supplementary figures, run `MATLAB/plotSupplementaryFigures.m`.
 
 For transparency, we also include the scripts used to run the parameter optimization. These can be run by passing extra arguments to `alcoholModel`: `alcoholModel(estimateOnAllData, doOptimize, doPI, doMCMC, doPPL)`. 
 

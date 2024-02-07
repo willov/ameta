@@ -1,30 +1,9 @@
 # %% Import packages
 import matplotlib.pyplot as plt
 import sund
-import os
 import numpy as np
 import json
-from contextlib import contextmanager
 import copy
-
-# %% Define useful functions
-def close_to_square(n):
-    b = np.round(np.sqrt(n))
-    a = np.ceil(n/b)
-    return int(a), int(b)
-
-@contextmanager
-def silent_errors(stdchannel, dest_filename):
-    try:
-        oldstdchannel = os.dup(stdchannel.fileno())
-        dest_file = open(dest_filename, 'w')
-        os.dup2(dest_file.fileno(), stdchannel.fileno())
-        yield
-    finally:
-        if oldstdchannel is not None:
-            os.dup2(oldstdchannel, stdchannel.fileno())
-        if dest_file is not None:
-            dest_file.close()
 
 # %% Define the name of the model
 model_name =  'alcohol_model'
@@ -34,13 +13,7 @@ sund.installModel(f"./Models/{model_name}.txt")
 Alcohol_model = sund.importModel(model_name)
 model = Alcohol_model() 
 
-fs = []
-for path, subdirs, files in os.walk('./results'):
-    for name in files:
-        if model_name in name.split('(')[0] and "ignore" not in path:
-            fs.append(os.path.join(path, name))
-fs.sort()
-with open(fs[0],'r') as f:
+with open("./Models/alcohol_model (187.19).json",'r') as f:
     param_in = json.load(f)
     params = param_in['x']
 
@@ -54,10 +27,10 @@ for d in all_data.values():
 validation_experiments = ["Okabe_Water2", "Okabe_Glucose", "Okabe_UG400", "Sarkola", "Javors_Low", "Frezza_Woman", "Frezza_Men"]
 
 estimation_data = {k:d.copy() for k,d in all_data.items() if k not in validation_experiments}
-estimation_data["Sarkola"] = all_data["Sarkola"].copy()
+estimation_data["Sarkola"] = copy.deepcopy(all_data["Sarkola"])
 estimation_data["Sarkola"].pop("EtOH") #split the Sarkola data into estimation/validation group
 
-estimation_data["Javors_Low"]= all_data["Javors_Low"].copy()
+estimation_data["Javors_Low"]= copy.deepcopy(all_data["Javors_Low"])
 estimation_data["Javors_Low"]["PEth"]["SEM"] = np.inf # Disables using PEth data from Javors_Low in the cost calculations
 estimation_data["Javors_Low"]["BrAC"]["SEM"] = np.inf # Disables using BrAC data from Javors_Low in the cost calculations
 
@@ -164,10 +137,10 @@ def f_cost(p, sims, D, print_costs = False):
                 y_sim = [y for y,t in zip(y_sim, sim.timevector) if t in obs["Time"]] # only keep sim_times that is also in data. Useful if observables have different number of observables 
                 y = np.array(obs['Mean'])
                 sem = np.array(obs['SEM'])
-                cost += np.square((y-y_sim)/sem).sum()
+                c = np.square((y-y_sim)/sem).sum() # Cost for the current experiment/variable
+                cost += c
 
-                if print_costs:
-                    c = np.square((y-y_sim)/sem).sum()
+                if print_costs and not (k_exp == "Javors_Low" and c == 0):
                     print(f"{k_exp}-{k_obs}: {c}")
 
     if "Javors_Combined" in D.keys():
@@ -177,10 +150,10 @@ def f_cost(p, sims, D, print_costs = False):
         y = np.array(obs['Mean'])
         sem = np.array(obs['SEM'])
 
-        cost += np.square((y-y_sim)/sem).sum()
+        c = np.square((y-y_sim)/sem).sum() # Cost for the current experiment/variable
+        cost += c
         if print_costs:
-            c = np.square((y-y_sim)/sem).sum()
-            print(f"Javors_Combined-{k_obs}: {c}")
+            print(f"Javors_Combined-PEth: {c}")
 
     return cost
 
@@ -198,12 +171,12 @@ def plot_agreement(p, sims, D):
 
     plot_info = {k:{} for k in all_data.keys()}
 
-    for key, observable, fig, position, title in zip(["Okabe_Water", "Okabe_Orange", "Okabe_Orange_Syrup", "Okabe_Milk_Water", "Okabe_Milk", "Okabe_Whiskey", "Okabe_UG200", "Okabe_UG600", "Mitchell_Beer", "Mitchell_Wine", "Mitchell_Spirit", "Jones_Fasting", "Kechagias_Fasting", "Javors_High", "Jones_Food", "Kechagias_Breakfast", "Sarkola", "Javors_High", "Javors_Combined", "Okabe_Water2", "Okabe_Glucose","Okabe_UG400", "Sarkola", "Javors_Low", "Javors_Low", "Frezza_Woman", "Frezza_Men"], 
+    for key, observable, fig, position, title, ylabel in zip(["Okabe_Water", "Okabe_Orange", "Okabe_Orange_Syrup", "Okabe_Milk_Water", "Okabe_Milk", "Okabe_Whiskey", "Okabe_UG200", "Okabe_UG600", "Mitchell_Beer", "Mitchell_Wine", "Mitchell_Spirit", "Jones_Fasting", "Kechagias_Fasting", "Javors_High", "Jones_Food", "Kechagias_Breakfast", "Sarkola", "Javors_High", "Javors_Combined", "Okabe_Water2", "Okabe_Glucose","Okabe_UG400", "Sarkola", "Javors_Low", "Javors_Low", "Frezza_Woman", "Frezza_Men"], 
                                                 ["Gastric volume", "Gastric volume", "Gastric volume", "Gastric volume", "Gastric volume", "Gastric volume","Gastric volume", "Gastric volume", "EtOH", "EtOH", "EtOH", "EtOH", "EtOH", "BrAC", "EtOH", "EtOH", "Acetate", "PEth", "PEth", "Gastric volume", "Gastric volume", "Gastric volume", "EtOH", "BrAC", "PEth", "EtOH", "EtOH"],
                                                 [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4],
                                                 [1, 2, 3, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 8],
-                                                ["Water", "Orange", "Orange_Syrup", "Milk_Water", "Milk", "Whiskey", "Uniform kcal 200ml", "Uniform kcal 600ml", "Beer BAC", "Wine BAC", "Spirit BAC", "Fasting BAC", "Fasting BAC", "High dose BrAC", "Food BAC", "Food BAC", "Acetate", "High dose PEth", "Long term PEth", "Water", "Glucose","Uniform kcal 400ml", "BAC", "Low dose BrAC", "Low dose PEth", "Woman Food BAC", "Men Food BAC"]):
-        plot_info[key][observable] = {"fig": fig, "pos": position, "title":title}
+                                                ["A) Water (0 kcal)", "B) Orange (220 kcal)", "C) Orange + syrup (329 kcal)", "E) Milk (329 kcal)", "D) Diluted milk (220 kcal)", "F) Diluted whiskey", "G) Glucose solution (200 kcal)", "H) Glucose solution (200 kcal)", "A) Beer BAC", "B) Wine BAC", "C) Spirit BAC", "D) Fasting BAC", "E) Fasting BAC", "F) High dose BrAC", "G) Food BAC", "H) Food BAC", "B) Acetate", "C) High dose PEth","D) Long term PEth", "A) Water", "B) Glucose solution (67 kcal)","C) Glucose solution (200 kcal)", "D) Fasting BAC", "E) Low dose BrAC", "F) Low dose PEth", "G) Woman food BAC", "H) Men food BAC"], ["Gastric volume", "Gastric volume", "Gastric volume", "Gastric volume", "Gastric volume", "Gastric volume","Gastric volume", "Gastric volume", "Plasma EtOH", "Plasma EtOH", "Plasma EtOH", "Plasma EtOH", "Plasma EtOH", "Breath EtOH", "Plasma EtOH", "Plasma EtOH", "Plasma Acetate", "Plasma PEth", "Plasma PEth", "Gastric volume", "Gastric volume", "Gastric volume", "Plasma EtOH", "Breath EtOH", "Plasma PEth", "Plasma EtOH", "Plasma EtOH"]):
+        plot_info[key][observable] = {"fig": fig, "pos": position, "title":title, "ylabel":ylabel}
 
     figs = [plt.figure(figsize=(19.2, 10.8)), plt.figure(figsize=(19.2, 10.8)), plt.figure(figsize=(19.2, 10.8)), plt.figure(figsize=(19.2, 10.8))]
 
@@ -247,11 +220,14 @@ def plot_agreement(p, sims, D):
                 ax.set_xlabel(f"Time ({sim.timeunit})")
                 ax.set_title(plot_info[k_exp][k_obs]["title"])
                 if "Unit" in obs.keys():
-                    ax.set_ylabel(obs["Unit"])
+                    ax.set_ylabel(f"{plot_info[k_exp][k_obs]['ylabel']} ({obs['Unit']})")
+                else:
+                    ax.set_ylabel(f"{plot_info[k_exp][k_obs]['ylabel']}")
 
     if "Javors_Combined" in D.keys():
 
         obs = D["Javors_Combined"]["PEth"]
+        k_obs = "PEth"
         t_short_term = max(D["Javors_Low"]["PEth"]["Time"])
         t1 = np.arange(0, t_short_term, 0.01)
         t2 = np.arange(t_short_term, max(obs["Time"]), 1)
@@ -292,16 +268,16 @@ def plot_agreement(p, sims, D):
         ax.errorbar(obs['Time'][:idx_short_t], obs['Mean'][:idx_short_t], obs['SEM'][idx_short_t], marker='o', capsize=5, linestyle='')
         ax.set_xlabel(f"Time ({sim_low.timeunit})")
         ax.set_title(plot_info["Javors_Combined"]["PEth"]["title"])
-        if "Unit" in obs.keys():
-            ax.set_ylabel(obs["Unit"])
+        ax.set_ylabel(f"{plot_info['Javors_Combined']['PEth']['ylabel']} ({obs['Unit']})")
+
 
         ax = fig.add_subplot(2,2,plot_info["Javors_Combined"]["PEth"]["pos"]+1)
         ax.plot(sim_low.timevector[100:]/(60*24), y_sim_long[100:])
         ax.errorbar(np.array(obs['Time'][idx_short_t:])/(60*24), obs['Mean'][idx_short_t:], obs['SEM'][idx_short_t:], marker='o', capsize=5, linestyle='')
         ax.set_xlabel(f"Time (days)")
         ax.set_title(plot_info["Javors_Combined"]["PEth"]["title"])
-        if "Unit" in obs.keys():
-            ax.set_ylabel(obs["Unit"])
+        ax.set_ylabel(f"{plot_info['Javors_Combined']['PEth']['ylabel']} ({obs['Unit']})")
+
 
     fignames = ["estimation Gastric", "estimation EtOH", "estimation EtOH derivates", "validation"]
     for i in range(4):

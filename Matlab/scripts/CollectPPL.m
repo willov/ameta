@@ -47,7 +47,7 @@ function [fileName, bestParams, n_sets] = CollectPPL(folder, m, D, limit)
     bestParams = parameterSets(1,2:end);
   
     parameterSets(:,end+1) = nan;
-    fileName = 'PPL_collected.dat';
+    fileName = 'PPL_parameters_collected.dat';
     writematrix(parameterSets, [folder '/' fileName])
 
     n_sets = size(parameterSets,1);

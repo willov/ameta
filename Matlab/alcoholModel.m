@@ -94,18 +94,20 @@ end
 %% Plot figures
 savefig = false;
 
-if ~exist(['Results_PPL/', resultsFolder, '/PPL_collected.dat'],'file')
-    [PPLFileName, ~, n_sets] = CollectPPL(['Results_PPL/', resultsFolder], m, estimationData, limitEst);
-    if n_sets>1
-        CollectUncertainty(['Results_PPL/', resultsFolder], PPLFileName, allData,m,getDgf(allData));
-    end
+if ~exist(['Results_PPL/', resultsFolder, '/PPL_parameters_collected.dat'],'file')
+    CollectPPL(['Results_PPL/', resultsFolder], m, estimationData, limitEst);
+end
+
+if ~exist(['Results_PPL/', resultsFolder, '/PPL_uncertainty_collected.mat'],'file')
+    PPLFileName = 'PPL_parameters_collected.dat';
+    CollectUncertainty(['Results_PPL/', resultsFolder], PPLFileName, allData,m,getDgf(allData));
 end
 
 if doMCMC
     CI = load(MCMCfileName);
     plotSortedFigures(CI.bestParams, m, allData, savefig, CI.Uncertainty)
-elseif exist(['Results_PPL/', resultsFolder, '/PPL_collected.mat'],'file')
-    CI = load(['Results_PPL/', resultsFolder, '/PPL_collected.mat']);
+elseif exist(['Results_PPL/', resultsFolder, '/PPL_uncertainty_collected.mat'],'file')
+    CI = load(['Results_PPL/', resultsFolder, '/PPL_uncertainty_collected.mat']);
     plotSortedFigures(CI.bestParams, m, allData, savefig, CI.Uncertainty)
 else
     plotSortedFigures(params, m, allData, savefig)
@@ -231,18 +233,18 @@ for fignum = 1:length(fignames)
 
     end
 
-    for experiment_cell = fieldnames(D)'
+    for col = 1:length(figsetting(1,:))
+        experiment_cell = figsetting(1,col);
 
         if any(strcmp(figsetting(1,:), experiment_cell))
 
             t = [];
             experiment = experiment_cell{:};
 
-            % get position of the experiment
-            col = find(strcmp(figsetting(1,:), experiment_cell) == 1, 1); % take the first position if duplicates is listed
+            % get the variable
             var = figsetting(2,col);
 
-            t = unique([t, D.(experiment).(var).Time(:).']); 
+            t = unique([t, D.(experiment).(var).Time(:).']);
 
             % Simulate the experiment
             if experiment == "Javors_Combined"
@@ -280,7 +282,7 @@ for fignum = 1:length(fignames)
                     ciTime = uncertainty.(experiment).(var).time;
                     ci = ciplot(uncertainty.(experiment).(var).min(ciTime<=375), uncertainty.(experiment).(var).max(ciTime<=375), ciTime(ciTime<=375),'k');
                     ci.EdgeColor='none';
-                    alpha(ci,0.2);
+                    ci.FaceColor = [204, 204, 204]/255;
                 end
                 plot(sim.time(sim.time<=375), y_sim(sim.time<=375), 'LineWidth', line_width, 'Color', 'k')
                 h = errorbar(d.Time(D.Javors_Combined.PEth.Time<=375), d.Mean(D.Javors_Combined.PEth.Time<=375), d.SEM(D.Javors_Combined.PEth.Time<=375), 'sb', 'MarkerFaceColor', 'auto', 'MarkerSize', Markersize);
@@ -301,7 +303,7 @@ for fignum = 1:length(fignames)
                 if ~isempty(uncertainty)
                     ci = ciplot(uncertainty.(experiment).(var).min(ciTime>=375), uncertainty.(experiment).(var).max(ciTime>=375), ciTime(ciTime>=375)./(60*24),'k');
                     ci.EdgeColor='none';
-                    alpha(ci,0.2);
+                    ci.FaceColor = [204, 204, 204]/255;
                 end
                 plot(sim.time(sim.time>=375)./(60*24), y_sim(sim.time>=375), 'LineWidth', line_width, 'Color', 'k')
                 h = errorbar(d.Time(D.Javors_Combined.PEth.Time>=375)./(60*24), d.Mean(D.Javors_Combined.PEth.Time>=375), d.SEM(D.Javors_Combined.PEth.Time>=375), 'sb', 'MarkerFaceColor', 'auto', 'MarkerSize', Markersize);
@@ -312,50 +314,37 @@ for fignum = 1:length(fignames)
                 le = legend({'Model uncertainty' , '\theta_{best} simulation'  });
                 set(le,'Box','off')
 
-                %current loop dont find that Javros_Low happens twice in validation plot
-            elseif experiment == "Javors_Low"
-
+            elseif experiment == "Frezza_Woman" || experiment == "Frezza_Men"
                 if ~isempty(uncertainty)
+                    ci = ciplot(uncertainty.(experiment).(var).min_extra, uncertainty.(experiment).(var).max_extra, uncertainty.(experiment).(var).time,'k');
+                    ci.EdgeColor='none';
+                    ci.FaceColor = [224, 224, 224]/255;
                     ci = ciplot(uncertainty.(experiment).(var).min, uncertainty.(experiment).(var).max, uncertainty.(experiment).(var).time,'k');
                     ci.EdgeColor='none';
-                    alpha(ci,0.2);
+                    ci.FaceColor = [204, 204, 204]/255;
                 end
                 plot(sim.time, y_sim(1:idx_tmax), 'LineWidth', line_width, 'Color', 'k')
-                h = errorbar(d.Time, d.Mean, d.SEM, 'sb', 'MarkerFaceColor', 'w', 'MarkerSize', Markersize);
-                set([h.Bar, h.Line], 'ColorType', 'truecoloralpha', 'ColorData', [h.Line.ColorData(1:3); 255*MarkerAlpha])
-                title(figsetting(4,col) , 'interpreter','none' ,'FontWeight','normal','FontSize',12)
-                ax = gca;
-                ax.TitleHorizontalAlignment = 'left';
-
-                xlabel("time (min)")
-                ylabel(strrep(sprintf('%s (%s)', figsetting(5,col), d.Unit), "Delta", "\Delta"))
-
-                col = col+1;
-                y_sim = getObservable(sim, figsetting(2,col), experiment);
-                d = D.(experiment).(figsetting(2,col));
-                idx_tmax = find(sim.time<=max(d.Time), 1, 'last');
-                var = figsetting(2,col);
-
-                subplotID = str2double(figsetting(3,col));
-                subplot(figrow,figcol, subplotID)
-                hold on
-
-                if ~isempty(uncertainty)
-                    ci = ciplot(uncertainty.(experiment).(var).min, uncertainty.(experiment).(var).max, uncertainty.(experiment).(var).time,'k');
-                    ci.EdgeColor='none';
-                    alpha(ci,0.2);
+                if fignames(fignum) == "validation"
+                    h = errorbar(d.Time, d.Mean, d.SEM, 'sb', 'MarkerFaceColor', 'w', 'MarkerSize', Markersize);
+                    set([h.Bar, h.Line], 'ColorType', 'truecoloralpha', 'ColorData', [h.Line.ColorData(1:3); 255*MarkerAlpha])
+                else
+                    h = errorbar(d.Time, d.Mean, d.SEM, 'sb', 'MarkerFaceColor', 'auto', 'MarkerSize', Markersize);
+                    set([h.Bar, h.Line], 'ColorType', 'truecoloralpha', 'ColorData', [h.Line.ColorData(1:3); 255*MarkerAlpha])
                 end
 
-                plot(sim.time, y_sim(1:idx_tmax), 'LineWidth', line_width, 'Color', 'k', 'HandleVisibility','off')
-                h = errorbar(d.Time, d.Mean, d.SEM, 'sb', 'MarkerFaceColor', 'w', 'MarkerSize', Markersize);
-                set([h.Bar, h.Line], 'ColorType', 'truecoloralpha', 'ColorData', [h.Line.ColorData(1:3); 255*MarkerAlpha])
+                if fignum ~= 4 && subplotID == 1
+                    le = legend({'Model uncertainty' , '\theta_{best} simulation'});
+                    set(le,'Box','off')
+                end
 
+                ylim(d.ylim)
+                xlim(d.xlim)
             else
 
                 if ~isempty(uncertainty)
                     ci = ciplot(uncertainty.(experiment).(var).min, uncertainty.(experiment).(var).max, uncertainty.(experiment).(var).time,'k');
                     ci.EdgeColor='none';
-                    alpha(ci,0.2);
+                    ci.FaceColor = [204, 204, 204]/255;
                 end
                 plot(sim.time, y_sim(1:idx_tmax), 'LineWidth', line_width, 'Color', 'k')
                 if fignames(fignum) == "validation"
@@ -482,8 +471,6 @@ longterm_colors = [71, 26, 82;
     218, 173, 207]/255;
 titles = ["Female drinking pattern", "Female PEth levels", "Male drinking pattern", "Male PEth levels"];
 
-CYPres = [];
-
 for idxExperiment = 1:length(experiments)
     experiment = experiments{idxExperiment};
     if contains(experiment, "women") && figcol==2
@@ -494,16 +481,10 @@ for idxExperiment = 1:length(experiments)
 
         if ~contains(var, ["meta", "input"])
             t = [];
-            t = unique([t, D.(experiment).(var).Time(:).']); 
+            t = unique([t, D.(experiment).(var).Time(:).']);
 
             % Simulate the experiment
             sim = simulate(p, m, {D.(experiment).inputs}, 0:1:t(end), experiment);
-            
-            if contains(func2str(m), 'Koenig')
-                CYPres.(experiment).time = sim.time;
-                CYPres.(experiment).statevalues = sim.statevalues;
-            end
-
             y_sim = getObservable(sim, var, experiment);
 
             d = D.(experiment).(var);

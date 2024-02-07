@@ -25,11 +25,28 @@ pNames_opt = pNames(1:length(params));
 %% Cost - to check that we have best param
 costEst = obj_f(params, m, estimationData, false) ; 
 
-%% Figure 1 
+
+%% Plot effect of no kcal emptying from the stomach (Fig. S20)
+[m, ~, ~, ~] = Initialize(modelName);
+D_noKcal = parseData('../plotSettings_NoKcalEmptying.json');
+
+resultsFolder = ['Estimation/' modelName];
+trigger = "min_cost"; %min_cost, latest
+Results = load_parameters(trigger, resultsFolder);
+params = Results.xbest;
+
+if any(params < 0)
+    params = exp(params);
+end
+
+saveFig = false;
+plotNoKcalExample(params, m, D_noKcal, saveFig)
+
+%% Plot sensitivity analysis (Figure S21)
 
 time_sim = 0:1:300 ;
 
-figInput = figure("Name","InputSensitivity");
+figInput = figure("Name","S21. Input Sensitivity");
 hold on
 set(gcf, 'color' , 'w')
 set(gcf, 'Units', 'centimeters');
@@ -213,13 +230,13 @@ ylim([0, 40])
 xlim([0  300])
 yline(20 ,'k' ,'LineWidth', 1.5  ,'HandleVisibility','off')
 
-%% Drink combinations
+%% Drink combinations (Fig. S22)
 
-drinkInputs = parseData('../dataDrinkSeries.json');
+drinkInputs = parseData('../plotSettings_DrinkSeries.json');
 fNames = fieldnames(drinkInputs);
 titles = ["A) Effect of non-nonalcoholic drinks"; "B) Timing effect of non-alcoholic drinks"];
 
-figTiming = figure("Name","TimingSensitivity");
+figTiming = figure("Name","S22. Timing sensitivity");
 set(gcf, 'color' , 'w')
 set(gcf, 'Units', 'centimeters');
 set(gcf,'position', [ 0  0 10.5 12.5])
@@ -288,4 +305,41 @@ experiment_in(1,:) = 'custom' ;
 
 y_sim = getObservable(sim, 'EtOH', 'custom');
 
+end
+
+function [] = plotNoKcalExample(p, m, D, saveFig)
+    pnames = IQMparameters(m);
+    p(find(strcmp('k_Kcal_clearance',pnames),1)) = 0;
+    
+    experiment = fieldnames(D);
+    var = 'EtOH';
+    t = unique(D.(experiment{:}).(var).Time(:).');
+    
+    % Simulate the experiment
+    sim = simulate(p, m, {D.(experiment{:}).inputs}, 0:1:t(end), experiment{:});
+    
+    %
+    figname = "S20. No kcal clearance";
+    fig = figure("Name", figname);
+    
+    subplot(1,2,1)
+    plot(sim.time./60, sim.statevalues(:,1), 'LineWidth', 2)
+    title('volume stomach')
+    xlabel('time (h)')
+    xlim([0 24])
+    ylabel('volume (dL)')
+    
+    subplot(1,2,2)
+    plot(sim.time./60, sim.statevalues(:,2), 'LineWidth', 2)
+    title('kcal stomach')
+    xlabel('time (h)')
+    xlim([0 24])
+    ylabel('kcal')
+    
+    % save fig
+    if saveFig
+        disp(strcat("Saving fig: ", 'Figures/', figname, '.pdf'))
+        exportgraphics(fig, strcat('Figures/', figname, '.pdf'),'Resolution',600)
+        exportgraphics(fig, strcat('Figures/', figname, '.eps'), "BackgroundColor","none","ContentType","vector")
+    end
 end
